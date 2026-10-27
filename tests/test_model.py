@@ -3,8 +3,8 @@ from dataclasses import replace
 
 import pytest
 
-from mm.model import fill_probability, optimal_spread, reservation_price
-from mm.params import Params
+from avellaneda_stoikov.model import fill_probability, optimal_spread, reservation_price
+from avellaneda_stoikov.params import Params
 
 P = Params()
 

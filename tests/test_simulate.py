@@ -1,8 +1,8 @@
 import numpy as np
 
-from mm.params import Params
-from mm.simulate import run_many
-from mm.strategies import InventoryStrategy, SymmetricStrategy
+from avellaneda_stoikov.params import Params
+from avellaneda_stoikov.simulate import run_many
+from avellaneda_stoikov.strategies import InventoryStrategy, SymmetricStrategy
 
 P = Params()
 

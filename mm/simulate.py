@@ -16,7 +16,11 @@ class SessionResult:
     n_trades: int
     avg_spread: float
 
-
+# Simulates one session. Each step: (1) get our bid and ask from the strategy,
+# (2) roll for a fill on each side using fill_probability, (3) a bid fill buys one
+# (cash down, inventory +1) and an ask fill sells one (cash up, inventory -1),
+# (4) move the mid price by a random Brownian step. Final P&L is cash plus
+# inventory valued at the last mid price.
 def run_session(strategy: Strategy, p: Params, rng: np.random.Generator) -> SessionResult:
     s, x, q = p.s0, 0.0, 0
     n_trades, spread_sum = 0, 0.0
