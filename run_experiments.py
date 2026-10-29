@@ -16,7 +16,7 @@ OUT.mkdir(exist_ok=True)
 N = 1000
 p = Params()
 
-results = {s.name: run_many(s, p, N, seed=7) for s in (InventoryStrategy(), SymmetricStrategy())}
+results = {s.name: run_many(s, p, N, seed=1) for s in (InventoryStrategy(), SymmetricStrategy())}
 
 print(f"{'strategy':<10} {'spread':>7} {'mean P&L':>9} {'std P&L':>8} {'mean q':>7} {'std q':>6}")
 for name, rs in results.items():
@@ -43,3 +43,12 @@ for g, x, y in zip(gammas, stds, means): ax.annotate(f"γ={g}", (x, y), textcoor
 ax.set_xlabel("Std of P&L (risk)"); ax.set_ylabel("Mean P&L"); ax.set_title("Risk vs. return as γ changes")
 fig.tight_layout(); fig.savefig(OUT / "gamma_sweep.png", dpi=120)
 print("gamma sweep:", [(g, round(m, 1), round(s, 1)) for g, m, s in zip(gammas, means, stds)])
+
+##Compare results across multiple inventory caps
+cap_results = {cap: run_many(InventoryStrategy(), p, 1000, seed=1, max_inventory=cap) for cap in [None, 10, 5, 3]}
+print(f"{'max_inv':<8} {'spread':>7} {'mean P&L':>9} {'std P&L':>8} {'std q':>6} {'max |q|':>8}")
+for cap, rs in cap_results.items():
+    pnl = np.array([r.pnl for r in rs]); q = np.array([r.final_q for r in rs])
+    spr = np.mean([r.avg_spread for r in rs])
+    max_q = max(r.max_abs_q for r in rs)
+    print(f"{str(cap):<8} {spr:7.2f} {pnl.mean():9.2f} {pnl.std():8.2f} {q.std():6.2f} {max_q:8d}")
