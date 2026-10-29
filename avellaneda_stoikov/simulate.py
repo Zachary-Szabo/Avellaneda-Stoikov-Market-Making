@@ -48,6 +48,6 @@ def run_session(strategy: Strategy, p: Params, rng: np.random.Generator) -> Sess
     return SessionResult(pnl=x + q * s, final_q=q, n_trades=n_trades,max_abs_q= max_abs_q,avg_spread=spread_sum / p.n_steps)
 
 
-def run_many(strategy: Strategy, p: Params, n: int, seed: int = 0) -> list[SessionResult]:
+def run_many(strategy: Strategy, p: Params, n: int, seed: int = 0,max_inventory = 0) -> list[SessionResult]:
     rng = np.random.default_rng(seed)
     return [run_session(strategy, p, rng) for _ in range(n)]
