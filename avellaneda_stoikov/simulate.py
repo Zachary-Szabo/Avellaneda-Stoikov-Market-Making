@@ -22,7 +22,7 @@ class SessionResult:
 # (cash down, inventory +1) and an ask fill sells one (cash up, inventory -1),
 # (4) move the mid price by a random Brownian step. Final P&L is cash plus
 # inventory valued at the last mid price.
-def run_session(strategy: Strategy, p: Params, rng: np.random.Generator) -> SessionResult:
+def run_session(strategy: Strategy, p: Params, rng: np.random.Generator,max_inventory: int | None = None) -> SessionResult:
     s, x, q = p.s0, 0.0, 0
     n_trades, spread_sum = 0, 0.0
     max_abs_q= 0
@@ -33,21 +33,24 @@ def run_session(strategy: Strategy, p: Params, rng: np.random.Generator) -> Sess
 
         # Distances are measured from the mid, as in the paper.
         delta_b, delta_a = s - bid, ask - s
-        if rng.random() < fill_probability(delta_b, p):   # someone sells to us
-            q += 1
-            x -= bid
-            n_trades += 1
-        if rng.random() < fill_probability(delta_a, p):   # someone buys from us
-            q -= 1
-            x += ask
-            n_trades += 1
+        if rng.random() < fill_probability(delta_b, p):   # someone sells to me
+            if max_inventory is None or q < max_inventory: # Check Inventory cap
+                q += 1
+                x -= bid
+                n_trades += 1
+        if rng.random() < fill_probability(delta_a, p):   # someone buys from me
+            if max_inventory is None or q > (-1 * max_inventory): # Check Inventory cap
+                q -= 1
+                x += ask
+                n_trades += 1
         max_abs_q = max(max_abs_q, abs(q))
         # Price moves after quotes are set (arithmetic Brownian motion, no drift).
         s += p.sigma * math.sqrt(p.dt) * rng.standard_normal()
 
+
     return SessionResult(pnl=x + q * s, final_q=q, n_trades=n_trades,max_abs_q= max_abs_q,avg_spread=spread_sum / p.n_steps)
 
 
-def run_many(strategy: Strategy, p: Params, n: int, seed: int = 0,max_inventory = 0) -> list[SessionResult]:
+def run_many(strategy: Strategy, p: Params, n: int, seed: int = 0,max_inventory: int | None = None) -> list[SessionResult]:
     rng = np.random.default_rng(seed)
-    return [run_session(strategy, p, rng) for _ in range(n)]
+    return [run_session(strategy, p, rng,max_inventory) for _ in range(n)]

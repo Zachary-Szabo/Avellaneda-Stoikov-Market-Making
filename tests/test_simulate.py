@@ -23,7 +23,7 @@ def test_max_q_exceeds():
     q_test = run_many(InventoryStrategy(), P, 200, seed=1)
     assert max(r.max_abs_q for r in q_test) > 5
 
-##Should fail for now to verify future changes
+
 def test_capped_inventory():
     q_test = run_many(InventoryStrategy(), P, 200, seed=1, max_inventory=5)
     assert max(r.max_abs_q for r in q_test) <= 5
