@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from avellaneda_stoikov.params import Params
-from avellaneda_stoikov.simulate import run_many
+from avellaneda_stoikov.simulate import run_many, run_session
 from avellaneda_stoikov.strategies import InventoryStrategy, SymmetricStrategy
 
 OUT = Path("figures")
@@ -52,3 +52,22 @@ for cap, rs in cap_results.items():
     spr = np.mean([r.avg_spread for r in rs])
     max_q = max(r.max_abs_q for r in rs)
     print(f"{str(cap):<8} {spr:7.2f} {pnl.mean():9.2f} {pnl.std():8.2f} {q.std():6.2f} {max_q:8d}")
+
+# Same random stream per session, with and without a hard inventory cap.
+fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+time = np.arange(p.n_steps) * p.dt
+for i, ax in enumerate(axes.ravel()):
+    seed = 100 + i
+    uncapped = run_session(InventoryStrategy(), p, np.random.default_rng(seed), max_inventory=None, record_path=True)
+    capped = run_session(InventoryStrategy(), p, np.random.default_rng(seed), max_inventory=3, record_path=True)
+    ax.plot(time, uncapped.q_path, color="C0", label="no cap")
+    ax.plot(time, capped.q_path, color="C1", label="cap = 3")
+    ax.axhline(3, linestyle="--", color="gray")
+    ax.axhline(-3, linestyle="--", color="gray")
+    ax.set_xlabel("time")
+    ax.set_ylabel("inventory")
+    ax.set_title(f"Session {i}")
+handles, labels = axes[0, 0].get_legend_handles_labels()
+fig.legend(handles, labels, loc="upper center", ncol=2)
+fig.tight_layout(rect=(0, 0, 1, 0.95))
+fig.savefig(OUT / "inventory_paths.png", dpi=120)

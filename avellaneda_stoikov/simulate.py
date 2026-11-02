@@ -16,16 +16,18 @@ class SessionResult:
     n_trades: int
     avg_spread: float
     max_abs_q: int
+    q_path: list[int] | None = None
 
 # Simulates one session. Each step: (1) get our bid and ask from the strategy,
 # (2) roll for a fill on each side using fill_probability, (3) a bid fill buys one
 # (cash down, inventory +1) and an ask fill sells one (cash up, inventory -1),
 # (4) move the mid price by a random Brownian step. Final P&L is cash plus
 # inventory valued at the last mid price.
-def run_session(strategy: Strategy, p: Params, rng: np.random.Generator,max_inventory: int | None = None) -> SessionResult:
+def run_session(strategy: Strategy, p: Params, rng: np.random.Generator,max_inventory: int | None = None, record_path: bool = False) -> SessionResult:
     s, x, q = p.s0, 0.0, 0
     n_trades, spread_sum = 0, 0.0
     max_abs_q= 0
+    q_path: list[int] | None = [] if record_path else None
     for i in range(p.n_steps):
         t = i * p.dt
         bid, ask = strategy.quotes(s, q, t, p)
@@ -44,11 +46,13 @@ def run_session(strategy: Strategy, p: Params, rng: np.random.Generator,max_inve
                 x += ask
                 n_trades += 1
         max_abs_q = max(max_abs_q, abs(q))
+        if q_path is not None:
+            q_path.append(q)
         # Price moves after quotes are set (arithmetic Brownian motion, no drift).
         s += p.sigma * math.sqrt(p.dt) * rng.standard_normal()
 
 
-    return SessionResult(pnl=x + q * s, final_q=q, n_trades=n_trades,max_abs_q= max_abs_q,avg_spread=spread_sum / p.n_steps)
+    return SessionResult(pnl=x + q * s, final_q=q, n_trades=n_trades,max_abs_q= max_abs_q,avg_spread=spread_sum / p.n_steps, q_path=q_path)
 
 
 def run_many(strategy: Strategy, p: Params, n: int, seed: int = 0,max_inventory: int | None = None) -> list[SessionResult]:

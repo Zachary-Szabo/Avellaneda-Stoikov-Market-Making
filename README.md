@@ -1,26 +1,31 @@
 # mm-sim: Avellaneda-Stoikov market making
-
-Week 1: reproduce Avellaneda & Stoikov (2008), "High-frequency trading in a limit order book", on simulated prices.
+A simulation of the Avellaneda-Stoikov market-making model: how quoting around an inventory-adjusted price cuts risk. Key result: about half the P&L risk for a ~4% lower mean P&L.
 
 ## Model
 - Reservation price: r = s - q·γ·σ²·(T - t)
 - Total spread: γ·σ²·(T - t) + (2/γ)·ln(1 + γ/k)
 - Fill chance per step for a quote δ from the mid: A·e^(-kδ)·dt
-- State (s, x, q, t) changes each step; settings (σ, γ, k, A, T, dt, s0) live in `mm/params.py`.
+- State (s, x, q, t) changes each step; settings (σ, γ, k, A, T, dt, s0) live in `avellaneda_stoikov/params.py`.
 
 ## Run
-    python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+    python -m venv .venv && source .venv/bin/activate    # Windows: py -3.12 -m venv .venv, then .venv\Scripts\activate
     pip install -e ".[dev]"
     pytest
     python run_experiments.py   # prints the table and writes figures/
 
-## Results (1,000 sessions, paper parameters)
+## Results (1,000 sessions, paper parameters, seed 1)
+
 | Strategy | Spread | Mean P&L | Std P&L | Std final q |
 |---|---|---|---|---|
-| Inventory | 1.49 | 64.71 | 6.58 | 3.01 |
-| Symmetric | 1.49 | 67.92 | 13.55 | 8.60 |
+| Inventory | 1.49 | 65.04 | 6.63 | 2.93 |
+| Symmetric | 1.49 | 67.80 | 13.70 | 8.45 |
+
+![Final P&L and inventory](figures/pnl_and_inventory.png)
+
+![Risk vs. return as gamma changes](figures/gamma_sweep.png)
 
 The inventory strategy gives up about 3 in mean P&L to cut P&L risk roughly in half, matching the paper.
+
 
 ## Inventory caps
 
@@ -32,6 +37,10 @@ The inventory-aware strategy already pulls its quotes back toward zero inventory
 | 10            | 1.49      | 65.04    | 6.63    | 2.92                | 10                |
 | 5             | 1.49      | 64.89    | 6.62    | 2.62                | 5                 |
 | 3             | 1.49      | 63.86    | 6.50    | 1.91                | 3                 |
+
+![Inventory over time, capped vs. uncapped](figures/inventory_paths.png)
+
+Same four sessions, same random prices, with and without a cap of 3. The lines match until the uncapped inventory crosses 3; after that the capped run stops quoting that side and stays inside the band.
 
 **What I found:**
 - A cap of 10 barely matters. It only clips the one session that got to 11.
