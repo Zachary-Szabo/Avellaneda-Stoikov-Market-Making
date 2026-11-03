@@ -49,3 +49,42 @@ Same four sessions, same random prices, with and without a cap of 3. The lines m
 - P&L risk barely changes. The inventory-aware quoting already keeps P&L swings low, so the cap works more like a safety limit on the worst-case position than a way to smooth returns.
 
 **Caveat:** this is one seed. The differences in mean P&L between caps (around 1 point) are small next to the std of about 6.6, so I wouldn't say one cap is better on P&L. The max inventory and inventory std differences are the clear ones.
+
+## BRTI history
+
+`fetch_brti.py` downloads CME CF Bitcoin Real Time Index (BRTI) history through Kalshi's CF Benchmarks passthrough. You need a Kalshi API key, not a separate CF Benchmarks login.
+
+1. In Kalshi, open Account & security → API Keys → Create Key.
+2. Copy the API key id shown on that page. Download the private key PEM and store it outside this repo. Kalshi cannot show the private key again.
+3. Create `.env` in this folder:
+
+```
+KALSHI_API_KEY_ID=your-key-id
+KALSHI_PRIVATE_KEY_PATH=path/to/your-key.pem
+```
+
+`.env`, `*.pem`, and `data/` are gitignored. Install dependencies with `pip install -e ".[dev]"`, then check one hour before a long pull:
+
+```
+python fetch_brti.py --probe
+python fetch_brti.py --start 2026-10-28 --end 2026-10-31
+```
+
+`--probe` fetches a single completed hour (or the first hour of `--start`, if you pass one), prints the response keys, point count, first and last timestamps, and the gap between points, and writes the raw JSON to `data/brti/probe.json`. The date command then walks each UTC day from `--start` through `--end` inclusive, one request per hour, and writes `data/brti/YYYY-MM-DD.csv`. A day that already has a CSV is skipped. CF Benchmarks documents each point as `time` (int64) and `value` (string) under `payload`, and Kalshi wraps that body in `data`. The hour timestamp has to be truncated, like `2026-10-28T14:00:00.000Z`.
+
+## Data
+
+`python analyze_brti.py` reads those daily CSVs (the raw files stay gitignored). It keeps the last price in each second, forward-fills gaps of up to 5 seconds, and takes log returns only across seconds that both have a price. `vol_1s` is the standard deviation of those returns, `vol_15m` is that number times √900, and realized vol is √(sum of squared returns). These four days had a print every 200 ms, so no second was missing after the fill.
+
+| Date | Missing seconds | Vol per second | 15-minute vol | Realized vol |
+|---|---:|---:|---:|---:|
+| 2026-10-28 | 0 | 5.09e-5 | 0.00153 | 0.0150 |
+| 2026-10-29 | 0 | 7.56e-5 | 0.00227 | 0.0222 |
+| 2026-10-30 | 0 | 8.68e-5 | 0.00261 | 0.0255 |
+| 2026-10-31 | 0 | 2.88e-5 | 0.00086 | 0.0085 |
+
+Friday was the busiest day and Saturday the quietest. By hour, the quiet stretch is about 05:00–07:00 UTC (01:00–03:00 Eastern), near 0.0011. The busy hours are 14:00 and 20:00 UTC (10:00 and 16:00 Eastern), near 0.0025.
+
+![BRTI 15-minute volatility by hour](figures/brti_vol_by_hour.png)
+
+Kalshi's 15-minute comparison, on 383 windows (the first one is skipped because the sample has no minute before it): 180 of 383 (47.0%) finished at or above the target. The median absolute move from target to final was 0.080%, and the standard deviation of final/target − 1 was 0.00200.

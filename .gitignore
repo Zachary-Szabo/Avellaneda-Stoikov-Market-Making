@@ -17,3 +17,7 @@ Thumbs.db
 
 # secrets
 .env
+*.pem
+
+# downloaded market data
+data/
