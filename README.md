@@ -88,3 +88,32 @@ Friday was the busiest day and Saturday the quietest. By hour, the quiet stretch
 ![BRTI 15-minute volatility by hour](figures/brti_vol_by_hour.png)
 
 Kalshi's 15-minute comparison, on 383 windows (the first one is skipped because the sample has no minute before it): 180 of 383 (47.0%) finished at or above the target. The median absolute move from target to final was 0.080%, and the standard deviation of final/target − 1 was 0.00200.
+
+## Calibration
+
+`python calibrate_fair_value.py` asks, at 10, 5, 2, and 1 minutes before each close, for the probability that the closing minute finishes at or above the target. Volatility is the standard deviation of the previous hour of 1-second price changes. The Brier score is the mean squared error of that probability. Predicting the sample's 47% base rate every time would score about 0.25.
+
+| Minutes left | Windows | Brier |
+|---|---:|---:|
+| 10 | 380 | 0.189 |
+| 5 | 380 | 0.127 |
+| 2 | 380 | 0.071 |
+| 1 | 380 | 0.039 |
+
+Closer to the close, the score drops and the probability piles up near 0 and 1. Ten and five minutes track the diagonal. One minute has only a handful of windows in the middle buckets, so those frequencies jump around.
+
+![Fair-value calibration](figures/calibration.png)
+
+
+### Baseline comparison
+
+Brier scores on 1,052 realized 15-minute BRTI windows (lower is better). Skill is `1 - brier_model / brier_const`.
+
+| Horizon | n    | Model  | Const 0.5 | Base rate | Fixed σ | Skill |
+|---------|------|--------|-----------|-----------|---------|-------|
+| 10 min  | 1052 | 0.1981 | 0.2500    | 0.2496    | 0.1997  | 0.208 |
+| 5 min   | 1052 | 0.1328 | 0.2500    | 0.2496    | 0.1369  | 0.469 |
+| 2 min   | 1052 | 0.0743 | 0.2500    | 0.2496    | 0.0766  | 0.703 |
+| 1 min   | 1052 | 0.0309 | 0.2500    | 0.2496    | 0.0328  | 0.876 |
+
+`fair_value_up` beats every baseline at every horizon, and its skill grows from 0.21 at 10 minutes to 0.88 at 1 minute as settlement approaches. Its edge over a single fixed σ is small but consistent. This means most of the accuracy comes from the model's structure (spot relative to target, time left, and the 60-second averaging window), and estimating σ per window adds a modest gain on top. At the 10-minute horizon the extreme buckets are overconfident (predicted 0.95 settles YES 87% of the time). This suggests the trailing 1-hour σ understates BTC's fat tails at longer horizons, which is a candidate for future work.
