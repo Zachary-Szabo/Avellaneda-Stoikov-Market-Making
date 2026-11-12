@@ -117,3 +117,36 @@ Brier scores on 1,052 realized 15-minute BRTI windows (lower is better). Skill i
 | 1 min   | 1052 | 0.0309 | 0.2500    | 0.2496    | 0.0328  | 0.876 |
 
 `fair_value_up` beats every baseline at every horizon, and its skill grows from 0.21 at 10 minutes to 0.88 at 1 minute as settlement approaches. Its edge over a single fixed σ is small but consistent. This means most of the accuracy comes from the model's structure (spot relative to target, time left, and the 60-second averaging window), and estimating σ per window adds a modest gain on top. At the 10-minute horizon the extreme buckets are overconfident (predicted 0.95 settles YES 87% of the time). This suggests the trailing 1-hour σ understates BTC's fat tails at longer horizons, which is a candidate for future work.
+
+## Avellaneda-Stoikov replay: tuning risk aversion (γ)
+
+`replay_as.py` replays each 15-minute window second by second. It quotes a bid and ask around a reservation price
+r = mid − q·γ·σ_p²·τ, with spread γ·σ_p²·τ + (2/γ)·ln(1 + γ/k).
+
+- σ_p is the per-second std of the model fair value over the last 60 s.
+- τ is seconds to settlement.
+- Fills are simulated with probability A·exp(−k·distance) from the model fair value (k = 150, A = 0.05).
+- Inventory is capped at ±10 contracts.
+- PnL is cash plus inventory × the settlement outcome.
+
+The quotes are centered either on the model fair value or on a flat 0.5 baseline.
+
+| Strategy | Mean PnL / window | Std | Sharpe | Worst window | Mean \|q\| at settle |
+|---|---|---|---|---|---|
+| Fair value, γ = 0.01 | 0.2052 | 1.0229 | 0.201 | −6.21 | 2.80 |
+| Fair value, γ = 0.05 | 0.1481 | 0.5208 | 0.284 | −2.66 | 2.15 |
+| **Fair value, γ = 0.1** | **0.1257** | **0.3684** | **0.341** | **−2.70** | **1.99** |
+| Fair value, γ = 0.5 | 0.0408 | 0.1597 | 0.255 | −1.72 | 1.67 |
+| Fair value, γ = 1 | 0.0142 | 0.1041 | 0.137 | −1.07 | 1.56 |
+| Flat 0.5, γ = 1 | −3.2166 | 1.4494 | −2.219 | −9.16 | 9.87 |
+
+*1,052 windows. Sharpe is per window (mean / std).*
+
+Quoting around the model fair value is profitable at every γ tested. Quoting around 0.5 loses about $3.22 per window and hits its inventory cap in nearly every window from adverse selection. Raising γ trades mean PnL for lower variance and less inventory held into settlement, and the Sharpe ratio peaks at γ = 0.1.
+
+An earlier version mixed time units, measuring σ_p per second but τ as a fraction of the window. That understated the remaining variance by 900× and made the inventory term negligible. Fixing it cut the worst window from −$7.99 to −$2.70 at the chosen γ.
+
+**Caveats:**
+- γ was tuned on the same windows reported here, so these results are in-sample.
+- The Sharpe standard error is roughly 1/√1052 ≈ 0.03.
+- The fill model is simulated, not real Kalshi queue data.

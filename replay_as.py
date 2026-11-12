@@ -10,7 +10,7 @@ A = 0.05
 MAX_Q = 10
 
 
-def run_window(grid, origin, close, use_fair=True, verbose=False):
+def run_window(grid, origin, close, use_fair=True, verbose=False, gamma=GAMMA):
     target = window_values(grid, origin, close - 960, close - 900)
     final = window_values(grid, origin, close - 60, close)
     if target is None or final is None:
@@ -53,9 +53,10 @@ def run_window(grid, origin, close, use_fair=True, verbose=False):
         sigma_p = float(np.std(np.diff(recent))) if len(recent) > 2 else 0.0
 
         mid = s if use_fair else 0.5
-        tau = seconds_left / 900
-        r = mid - q * GAMMA * sigma_p**2 * tau
-        spread = GAMMA * sigma_p**2 * tau + (2 / GAMMA) * np.log(1 + GAMMA / K)
+        tau = seconds_left
+        var_left = sigma_p**2 * tau
+        r = mid - q * gamma * var_left
+        spread = gamma * var_left + (2 / gamma) * np.log(1 + gamma / K)
         bid = max(0.01, min(0.99, r - spread / 2))
         ask = max(0.01, min(0.99, r + spread / 2))
         if bid >= ask:
@@ -75,17 +76,17 @@ def run_window(grid, origin, close, use_fair=True, verbose=False):
             print(close, seconds_left, round(s, 3), round(bid, 3), round(ask, 3), q)
 
     pnl = cash + q * outcome
-    return {"pnl": pnl, "q": q, "outcome": outcome}
+    return {"pnl": pnl, "q": q, "outcome": outcome,"gamma":gamma}
 
 
-def episodes(grid, origin, use_fair=True):
+def episodes(grid, origin, use_fair=True, gamma=GAMMA):
     results = []
     end = origin + len(grid) - 1
     close = origin + (900 - origin % 900) % 900
     if close == origin:
         close += 900
     while close <= end + 1:
-        r = run_window(grid, origin, close, use_fair=use_fair)
+        r = run_window(grid, origin, close, use_fair=use_fair, gamma=gamma)
         if r is not None:
             results.append(r)
         close += 900
@@ -105,7 +106,8 @@ def main() -> None:
     if not paths:
         raise SystemExit(f"No daily CSVs in {DATA_DIR}")
     grid, origin = price_grid(paths)
-    summarize("fair value", episodes(grid, origin, use_fair=True))
+    for g in (0.01, 0.05, 0.1, 0.5, 1.0):
+        summarize(f"fair g={g:g}", episodes(grid, origin, use_fair=True, gamma=g))
     summarize("flat 0.5", episodes(grid, origin, use_fair=False))
 
 
