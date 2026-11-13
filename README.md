@@ -150,3 +150,5 @@ An earlier version mixed time units, measuring σ_p per second but τ as a fract
 - γ was tuned on the same windows reported here, so these results are in-sample.
 - The Sharpe standard error is roughly 1/√1052 ≈ 0.03.
 - The fill model is simulated, not real Kalshi queue data.
+**Notes:**
+- Stopping quotes in the final 60 s had no meaningful effect (Sharpe 0.341 in both cases).
