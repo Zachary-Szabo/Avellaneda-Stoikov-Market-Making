@@ -153,3 +153,4 @@ An earlier version mixed time units, measuring σ_p per second but τ as a fract
 
 **Notes:**
 - Stopping quotes in the final 60 s had no meaningful effect (Sharpe 0.341 in both cases).
+- γ was chosen on the first 70% of windows by time (γ = 0.1, train Sharpe 0.387, n = 736). On the held-out last 30% (n = 316), it earned +$0.089 per window with a Sharpe of 0.240 and a worst window of −$2.70.
