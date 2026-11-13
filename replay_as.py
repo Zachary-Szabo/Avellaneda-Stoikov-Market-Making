@@ -108,8 +108,12 @@ def main() -> None:
     if not paths:
         raise SystemExit(f"No daily CSVs in {DATA_DIR}")
     grid, origin = price_grid(paths)
-    summarize("fair g= 0.1", episodes(grid, origin, use_fair=True, gamma=0.1,cut_off=True))
-    summarize("flat 0.5", episodes(grid, origin, use_fair=False,gamma=0.1,cut_off=True))
+    #for g in (0.01, 0.05, 0.1, 0.5, 1.0):
+    results = episodes(grid, origin, use_fair=True, gamma=.1)
+    cut = int(len(results) * 0.7)
+    train, test = results[:cut], results[cut:]
+    summarize(f"train g={.1}", test)
+    # summarize("flat 0.5", episodes(grid, origin, use_fair=False, gamma=1.0))
 
 
 if __name__ == "__main__":
