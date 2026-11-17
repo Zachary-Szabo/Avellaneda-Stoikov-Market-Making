@@ -119,3 +119,4 @@ if __name__ == "__main__":
             e.to_parquet(out / f"{m.ticker}.parquet")
         if k % 50 == 0:
             print(k, m.ticker)
+            

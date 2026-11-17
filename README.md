@@ -189,3 +189,40 @@ Edge = trade price − fair value, volume-weighted.
 
 **Caveats:** edge relative to a model is not mispricing until it's checked
 against outcomes. Next step: Brier score of trade price vs. fair value per bucket.
+
+### Who forecasts better: the market or the model?
+
+Brier score = mean of (forecast − outcome)², volume-weighted; lower is better.
+Buckets are by model fair value.
+
+| Fair value | Market | Model | Model − Market |
+|---|---|---|---|
+| 0.0–0.1 | 0.0300 | 0.0316 | +0.0015 |
+| 0.1–0.2 | 0.1246 | 0.1272 | +0.0026 |
+| 0.2–0.3 | 0.1829 | 0.1886 | +0.0057 |
+| 0.3–0.4 | 0.2193 | 0.2206 | +0.0013 |
+| 0.4–0.5 | 0.2452 | 0.2453 | +0.0001 |
+| 0.5–0.6 | 0.2462 | 0.2484 | +0.0021 |
+| 0.6–0.7 | 0.2197 | 0.2248 | +0.0051 |
+| 0.7–0.8 | 0.1928 | 0.1983 | +0.0055 |
+| 0.8–0.9 | 0.1318 | 0.1396 | +0.0079 |
+| 0.9–1.0 | 0.0156 | 0.0173 | +0.0017 |
+| **Overall** | **0.1155** | **0.1180** | **+0.0025** |
+
+**Result:** the market beats the model in every bucket. The biggest gaps are
+where the market was more extreme than the model (0.2–0.3 and 0.6–0.9), so
+where they disagree, the market is usually right. The model is underconfident
+in the middle of the range.
+
+**Why it matters for market making:** quoting purely around model fair value
+means trading against better-informed flow (adverse selection).
+
+**Likely causes and next steps:**
+1. A 1-hour σ may overstate near-term volatility and pull fair values toward
+   0.5. Next: sweep the σ window (5, 15, 30, 60 min), chosen on train and
+   checked on test.
+2. Traders may see exchange prices before BRTI updates. Next: blend the model
+   with the market mid, or add a leading exchange price.
+
+**Caveat:** trades within a market share one outcome, so the effective sample
+is about 1,036 outcomes, not 40M trades.
