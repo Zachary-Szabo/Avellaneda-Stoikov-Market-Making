@@ -226,3 +226,27 @@ means trading against better-informed flow (adverse selection).
 
 **Caveat:** trades within a market share one outcome, so the effective sample
 is about 1,036 outcomes, not 40M trades.
+
+### σ window sweep
+
+To test whether a 1-hour σ was overstating near-term volatility, I swept the
+σ estimation window over 5, 15, 30 and 60 minutes. Skill = 1 − Brier / Brier(0.5),
+using a chronological 70/30 train/test split over 1,052 windows.
+
+| Window | 10 min (train / test) | 5 min | 2 min | 1 min |
+|---|---|---|---|---|
+| 60 min | 0.1880 / 0.2534 | 0.4592 / 0.4914 | 0.6986 / 0.7119 | 0.8896 / 0.8455 |
+| 30 min | 0.1907 / 0.2519 | 0.4583 / 0.4928 | 0.6984 / 0.7172 | 0.8896 / 0.8474 |
+| 15 min | 0.1925 / 0.2488 | 0.4600 / 0.4894 | 0.6985 / 0.7143 | 0.8914 / 0.8501 |
+| 5 min  | 0.1938 / 0.2492 | 0.4558 / 0.4839 | 0.7013 / 0.7129 | 0.8911 / 0.8478 |
+
+**Result:** skill differences are under 0.006 at every horizon, which is within
+noise for about 1,050 windows. The 5-minute window has the best train skill at
+10 minutes but does worse on test, so choosing it would have been overfitting.
+I kept the 1-hour σ.
+
+**Takeaway:** σ estimation is not the source of the model's gap to the market.
+The remaining suspects are fat tails (at 10 minutes, predictions of about 0.95
+come true only 86.7% of the time) and traders reacting to exchange prices before
+BRTI updates. Next: blend the model with the market price, and test whether
+Coinbase or Binance prices lead BRTI.

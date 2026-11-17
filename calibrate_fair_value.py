@@ -14,6 +14,7 @@ OUT = Path("figures")
 HORIZONS = (600, 300, 120, 60)
 HORIZON_NAME = {600: "10 min", 300: "5 min", 120: "2 min", 60: "1 min"}
 SIGMA_WINDOW = 3600
+SIGMA_WINDOWS = (3600, 1800, 900, 300)
 
 
 def price_grid(paths) -> tuple[np.ndarray, int]:
@@ -37,7 +38,7 @@ def window_values(grid: np.ndarray, origin: int, start: int, stop: int):
     return values
 
 
-def forecasts(grid: np.ndarray, origin: int) -> dict[int, list[dict]]:
+def forecasts( grid: np.ndarray, origin: int,sigma_window: int = 3600) -> dict[int, list[dict]]:
     scored = {horizon: [] for horizon in HORIZONS}
     end = origin + len(grid) - 1
     close = origin + (900 - origin % 900) % 900
@@ -55,7 +56,7 @@ def forecasts(grid: np.ndarray, origin: int) -> dict[int, list[dict]]:
         for horizon in HORIZONS:
             now = close - horizon
             spot = window_values(grid, origin, now, now + 1)
-            history = window_values(grid, origin, now - SIGMA_WINDOW, now + 1)
+            history = window_values(grid, origin, now - sigma_window, now + 1)
             observed_sum, observed_count = 0.0, 0
             if spot is None or history is None or len(history) < 2:
                 continue
@@ -182,6 +183,22 @@ def save_figure(tables: dict[int, list[dict]]) -> Path:
     return dest
 
 
+def sweep_sigma(grid, origin):
+    print(f"\n{'window':>7} {'horizon':<8} {'train_skill':>12} {'test_skill':>11}")
+    for w in SIGMA_WINDOWS:
+        scored = forecasts(grid, origin, sigma_window=w)
+        for horizon in HORIZONS:
+            recs = scored[horizon]
+            cut = int(len(recs) * 0.7)          # records are in time order
+            for name, part in (("train", recs[:cut]), ("test", recs[cut:])):
+                p = np.array([r["p"] for r in part])
+                y = np.array([r["y"] for r in part])
+                skill = 1 - np.mean((p - y) ** 2) / np.mean((0.5 - y) ** 2)
+                if name == "train":
+                    train_skill = skill
+            print(f"{w:>7} {HORIZON_NAME[horizon]:<8} {train_skill:>12.4f} {skill:>11.4f}")
+
+
 def main() -> None:
     paths = sorted(path for path in DATA_DIR.glob("*.csv") if DAY_FILE.match(path.name))
     if not paths:
@@ -190,6 +207,7 @@ def main() -> None:
     tables = print_report(forecasts(grid, origin))
     dest = save_figure(tables)
     print(f"\nsaved {dest}")
+    sweep_sigma(grid, origin)
 
 
 if __name__ == "__main__":
