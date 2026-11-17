@@ -154,3 +154,38 @@ An earlier version mixed time units, measuring σ_p per second but τ as a fract
 **Notes:**
 - Stopping quotes in the final 60 s had no meaningful effect (Sharpe 0.341 in both cases).
 - γ was chosen on the first 70% of windows by time (γ = 0.1, train Sharpe 0.387, n = 736). On the held-out last 30% (n = 316), it earned +$0.089 per window with a Sharpe of 0.240 and a worst window of −$2.70.
+
+## Real Kalshi trades vs. model fair value
+
+I pulled every trade for 1,036 KXBTC15M markets (Oct 21–31, 2026; 40.5M trades)
+and compared each trade's YES price to the model fair value at that second.
+Edge = trade price − fair value, volume-weighted.
+
+| Fair value | Trades | VW edge | Taker fee |
+|---|---|---|---|
+| 0.0–0.1 | 6.47M | +1.15¢ | 0.19¢ |
+| 0.1–0.2 | 2.90M | +0.12¢ | 0.84¢ |
+| 0.2–0.3 | 3.07M | −0.66¢ | 1.25¢ |
+| 0.3–0.4 | 3.79M | −0.71¢ | 1.54¢ |
+| 0.4–0.5 | 4.78M | −0.24¢ | 1.71¢ |
+| 0.5–0.6 | 4.48M | +0.87¢ | 1.70¢ |
+| 0.6–0.7 | 3.50M | +1.48¢ | 1.52¢ |
+| 0.7–0.8 | 2.89M | +1.40¢ | 1.22¢ |
+| 0.8–0.9 | 2.71M | +0.63¢ | 0.82¢ |
+| 0.9–1.0 | 5.79M | −0.79¢ | 0.16¢ |
+
+**Findings**
+- Overall edge is +0.26¢, and only 51.2% of markets have a positive edge. On
+  average, the market and the model agree closely.
+- The tails show favorite-longshot bias: cheap YES trades above fair and
+  expensive YES below it. These are the only buckets where the gap clearly
+  exceeds the taker fee.
+- In the middle, the market is more extreme than the model (below fair at
+  0.2–0.5, above it at 0.5–0.8). This is either model underconfidence or
+  momentum.
+- KXBTC15M charges no maker fee (`fee_type: quadratic`, as of Nov 2026), so
+  a maker keeps the full edge. The taker fee is shown as the barrier that stops
+  takers from arbitraging it.
+
+**Caveats:** edge relative to a model is not mispricing until it's checked
+against outcomes. Next step: Brier score of trade price vs. fair value per bucket.
