@@ -250,3 +250,49 @@ The remaining suspects are fat tails (at 10 minutes, predictions of about 0.95
 come true only 86.7% of the time) and traders reacting to exchange prices before
 BRTI updates. Next: blend the model with the market price, and test whether
 Coinbase or Binance prices lead BRTI.
+
+### Does the model add information beyond the market price?
+
+I blended the two forecasts, p = w·model + (1−w)·market price, and swept
+w from 0 to 1 in steps of 0.05. Scoring is volume-weighted Brier against
+the settled outcome.
+
+**Single chronological split (725 train / 311 test markets):**
+
+| | Train Brier | Test Brier |
+|---|---|---|
+| Market (w=0) | 0.11659 | 0.11336 |
+| Model (w=1) | 0.12097 | 0.11190 |
+| Best w on train | 0.0 | 0.11336 |
+
+Train picks w = 0 (pure market), but on test the model wins and the best
+blend is near w = 0.75. Brier improved on test for both forecasts, which
+suggests the later days were calmer and easier to forecast, not that the
+model got better.
+
+**Walk-forward (expanding window, one test day at a time, 9 test days):**
+
+| Test day | Markets | Best w | Market | Model | Blend |
+|---|---|---|---|---|---|
+| Oct 24 | 96 | 0.0 | 0.12896 | 0.13789 | 0.12896 |
+| Oct 25 | 96 | 0.0 | 0.10606 | 0.11621 | 0.10606 |
+| Oct 26 | 96 | 0.0 | 0.11483 | 0.11481 | 0.11483 |
+| Oct 27 | 96 | 0.0 | 0.12337 | 0.12976 | 0.12337 |
+| Oct 28 | 96 | 0.0 | 0.11260 | 0.11369 | 0.11260 |
+| Oct 29 | 88 | 0.0 | 0.10550 | 0.10133 | 0.10550 |
+| Oct 30 | 96 | 0.0 | 0.11024 | 0.10678 | 0.11024 |
+| Oct 31 | 96 | 0.1 | 0.12574 | 0.12919 | 0.12578 |
+
+(Nov 1 is left out of the table: it has only 1 market.)
+
+**Result:** the blend beat the market on 0 of 9 days. The model alone beat
+the market on 3 days (Oct 26, 29 and 30), but those wins didn't carry over
+to the next day, so a weight trained only on past data never captures them.
+The single 70/30 split was misleading: one favorable test period made the
+model look better than it is.
+
+**Takeaway:** the market price is the better forecaster, and blending in
+the model doesn't improve on it out of sample. Next step is to re-center
+the Avellaneda-Stoikov quotes on the market mid and use the model's fair
+value only as a signal (skewing quotes or widening the spread when the two
+disagree), instead of quoting around fair value directly.
