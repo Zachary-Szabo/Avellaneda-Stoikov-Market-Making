@@ -296,3 +296,38 @@ the model doesn't improve on it out of sample. Next step is to re-center
 the Avellaneda-Stoikov quotes on the market mid and use the model's fair
 value only as a signal (skewing quotes or widening the spread when the two
 disagree), instead of quoting around fair value directly.
+
+### Re-centering quotes on the market mid
+
+Earlier replays quoted around the model's fair value **and** simulated fills
+against that same fair value. That assumes the model is the true price.
+The Brier and walk-forward tests showed the market is the better forecaster,
+so those results were likely optimistic.
+
+The replay now uses the Kalshi market price (last trade each second,
+forward filled) as the price fills are measured against, and centers
+quotes at mid + k·(fair − mid). PnL still settles on the real outcome.
+γ = 0.1, chronological 70/30 split (725 train / 311 test windows).
+
+| k | Train Sharpe | Test Sharpe | Train worst | Avg abs(inventory) |
+|---|---|---|---|---|
+| 0.0 | 0.349 | 0.207 | −$1.19 | 2.77 |
+| 0.1 | 0.109 | 0.204 | −$7.13 | 3.37 |
+| 0.2 | 0.029 | 0.109 | −$8.09 | 4.07 |
+| 0.3 | −0.052 | 0.025 | −$8.22 | 4.84 |
+| 0.5 | −0.178 | −0.117 | −$9.14 | 6.13 |
+| 0.75 | −0.349 | −0.265 | −$10.69 | 7.26 |
+| 1.0 | −0.530 | −0.425 | −$12.19 | 7.82 |
+
+**Result:** leaning toward the model hurts steadily. Every step up in k
+increases inventory and tail losses, because the quotes offer a better price
+than the market on the side where the market turns out to be right
+(adverse selection). Pure mid-quoting (k = 0) is best on train and ties
+k = 0.1 on test with far lower risk.
+
+**Takeaway:** quote around the market mid. The model's fair value isn't
+useful as a quote center in this setup.
+
+**Caveats:** last trade price is a proxy for the true mid (no order book
+data), and the fill model is still synthetic. The next step is a fill model
+based on real trades.
