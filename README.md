@@ -331,3 +331,75 @@ useful as a quote center in this setup.
 **Caveats:** last trade price is a proxy for the true mid (no order book
 data), and the fill model is still synthetic. The next step is a fill model
 based on real trades.
+
+## Real-trade fill model
+
+### Fill rule
+Quotes are filled only by real Kalshi trades. In each second, the bot quotes off the
+**previous** second's last trade price (`mkt[i-1]`). A bid fills only if the total
+contract volume trading strictly below it that second is at least `min_vol`, and an
+ask fills only if that volume trading strictly above it is at least `min_vol`.
+Inventory is capped at ±10.
+
+### Look-ahead lesson
+An earlier version used the *same* second's last trade as the mid while checking that
+second's trades for fills. That leaks future information: the quote already "knows"
+where the market traded. It made k=0 (pure market quoting) look like a Sharpe of 1.8.
+With a lagged mid, k=0 loses money (Sharpe ≈ −1.7), because stale quotes get picked off.
+
+### Blending market and model
+Quote center = `m + k·(fair − m)`, where `m` is the lagged Kalshi price and `fair` is
+the BTC-spot fair value.
+
+| k   | Train Sharpe (v=1) | Test Sharpe (v=1) | Train Sharpe (v=50) | Test Sharpe (v=50) |
+|-----|-------|-------|-------|-------|
+| 0.0 | −1.686 | −1.369 | −1.689 | −1.448 |
+| 0.3 | −0.151 | −0.002 | −0.367 | −0.216 |
+| 0.5 |  0.255 |  0.354 |  0.072 |  0.182 |
+| 0.7 |  0.368 |  0.439 |  0.221 |  0.306 |
+| 1.0 |  0.226 |  0.303 |  0.104 |  0.199 |
+
+- **Best k ≈ 0.7** at every `min_vol`, and train and test agree, so this isn't overfit.
+  The BTC fair value leads the Kalshi price over short horizons, but the market still
+  carries information, so a blend beats either one alone.
+- **Stricter fills hurt at every k.** Raising `min_vol` from 1 to 50 cuts fills by about
+  15% and lowers Sharpe, because the trades big enough to fill you are the
+  informed ones (adverse selection).
+
+### Limitations
+- Fills still land in roughly 40% of seconds even at `min_vol=50`, so queue position
+  is still optimistic. The next step would be a per-trade fill probability or
+  back-of-queue assumption.
+- |q| averages around 7 against a cap of 10, so inventory risk dominates the
+  worst-case windows (about −$10).
+
+![Sharpe vs k](sharpe_vs_k.png)
+![Sharpe vs min_vol](sharpe_vs_min_vol.png)
+
+## Monte Carlo Stress Testing
+To separate signal from sample luck and test tail risk, we simulated 500 synthetic
+15-minute windows calibrated to real BTC volatility (`s0 = $80,504`, `sigma_sec = 5.6e-5`)
+under two regimes: pure GBM and GBM + Poisson jumps (`jump_prob=0.002`, `jump_std=0.003`),
+with a synthetic Kalshi mid lagging fair value by 2 seconds (`gamma = 0.1`).
+
+| Scenario | k | Mean PnL | Std | Sharpe | 5th Pct | Worst Window | Mean \|q\| |
+|---|---|---|---|---|---|---|---|
+| GBM (lag=2s) | 0.0 | −$8.66 | $4.34 | −1.997 | −$16.81 | −$22.85 | 3.50 |
+| GBM (lag=2s) | 0.7 | +$0.44 | $0.90 | +0.489 | −$1.16 | −$4.65 | 6.43 |
+| Jumps (lag=2s) | 0.0 | −$4.51 | $2.80 | −1.612 | −$9.74 | −$13.42 | 5.54 |
+| Jumps (lag=2s) | 0.7 | +$0.84 | $1.56 | +0.536 | −$1.42 | −$10.34 | 5.78 |
+
+- **Mechanism confirmed:** GBM with a 2-second market lag reproduces the real replay
+  closely (`Sharpe +0.49` vs. `+0.37`–`+0.44` live; `k=0` bleeds heavily in both).
+- **Jumps double tail risk:** Adding rare jumps widens the worst-case window from
+  `−$4.65` to `−$10.34` (matching the real replay's `−$10.17` worst window) because
+  trailing 60-second volatility underestimates risk right before a jump.
+
+## Key Takeaways & Next Steps
+- **Progression of realism:** Naive same-second replay (`Sharpe 1.83` at `k=0`) →
+  lagged mid (`Sharpe 0.37` train / `0.44` test at `k=0.7`) → stricter queue volume
+  `min_vol=50` (`Sharpe 0.22` train / `0.31` test).
+- **Not production-ready as-is:** Fees, sub-second latency, and true order-book queue
+  priority are not modeled and would erode the remaining edge. The project's goal is
+  demonstrating how look-ahead bias, stale-quote adverse selection, and jump risk show
+  up in an Avellaneda-Stoikov market maker.
